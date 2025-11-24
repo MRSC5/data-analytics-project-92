@@ -1,105 +1,180 @@
-SELECT COUNT(*) AS customers_count
-FROM customers;
-
+-- CUSTOMERS_COUNT
+-- Этот запрос подсчитывает общее количество покупателей в таблице customers
+-- и возвращает результат в колонке с именем customers_count.
+-- Он использует функцию COUNT(*), которая считает все строки в таблице,
+-- не учитывая, есть ли в них значения NULL.
 
 SELECT
-   CONCAT(e.first_name, ' ', e.last_name) AS seller,
-   COUNT(s.sales_id) AS operations,
-   FLOOR(SUM(p.price * s.quantity)) AS income
-   FROM
-   employees e
+    COUNT(*) AS customers_count
+FROM
+    customers;
+
+
+-- top_10_total_income
+-- Этот запрос извлекает информацию о десяти лучших продавцах на основе их общей выручки.
+
+SELECT
+    CONCAT(e.first_name, ' ', e.last_name) AS seller,
+    COUNT(s.sales_id) AS operations,
+    FLOOR(SUM(p.price * s.quantity)) AS income
+FROM
+    employees AS e
 JOIN
-   sales s ON e.employee_id = s.sales_person_id
+    sales AS s
+    ON e.employee_id = s.sales_person_id
 JOIN
-   products p ON s.product_id = p.product_id
+    products AS p
+    ON s.product_id = p.product_id
 GROUP BY
-   e.employee_id
+    e.employee_id,
+    e.first_name,
+    e.last_name
 ORDER BY
-   income DESC
+    income DESC
 LIMIT 10;
 
 
+-- day_of_the_week_income
+-- Этот SQL-запрос выполняет следующие действия:
+-- 1. Выбор данных: объединяет имя и фамилию продавца, извлекает день недели, вычисляет выручку
+-- 2. Объединение таблиц: employees, sales, products
+-- 3. Группировка данных по дню недели и продавцу
+-- 4. Сортировка результатов по дню недели и имени продавца
+
 SELECT
-   CONCAT(e.first_name, ' ', e.last_name) AS seller,
-   TO_CHAR(s.sale_date, 'day') AS day_of_week,
-   FLOOR(SUM(p.price * s.quantity)) AS income
+    CONCAT(e.first_name, ' ', e.last_name) AS seller,
+    TO_CHAR(s.sale_date, 'day') AS day_of_week,
+    FLOOR(SUM(p.price * s.quantity)) AS income
 FROM
-   employees e
+    employees AS e
 JOIN
-   sales s ON e.employee_id = s.sales_person_id
+    sales AS s
+    ON e.employee_id = s.sales_person_id
 JOIN
-   products p ON s.product_id = p.product_id
+    products AS p
+    ON s.product_id = p.product_id
 GROUP BY
-    EXTRACT(ISODOW FROM s.sale_date), CONCAT(e.first_name, ' ', e.last_name), TO_CHAR(s.sale_date, 'day')
-   ORDER BY
-   EXTRACT(ISODOW FROM s.sale_date), seller;
+    EXTRACT(ISODOW FROM s.sale_date),
+    e.first_name,
+    e.last_name,
+    TO_CHAR(s.sale_date, 'day')
+ORDER BY
+    EXTRACT(ISODOW FROM s.sale_date),
+    seller;
 
 
-with average_income as (
-select sales_person_id,
-floor(sum(quantity * price)/ count(sales_id)) as avg_income
-from sales s
-join products p on
-s.product_id = p.product_id
-group by sales_person_id
+-- lowest_average_income
+-- Этот запрос находит продавцов с доходом ниже среднего
+
+WITH average_income AS (
+    SELECT
+        s.sales_person_id,
+        FLOOR(SUM(p.price * s.quantity) / COUNT(s.sales_id)) AS avg_income
+    FROM
+        sales AS s
+    JOIN
+        products AS p
+        ON s.product_id = p.product_id
+    GROUP BY
+        s.sales_person_id
 ),
-overall_average as (
-select floor(avg(avg_income)) as overall_avg
-from average_income
-)
-select concat(e.first_name,' ', e.last_name) as seller,
-ai.avg_income as average_income
-from average_income ai
-join employees e on
-ai.sales_person_id = e.employee_id
-where
-ai.avg_income < (select overall_avg from overall_average)
-order by average_income asc;
 
+overall_average AS (
+    SELECT
+        FLOOR(AVG(avg_income)) AS overall_avg
+    FROM
+        average_income
+)
+
+SELECT
+    CONCAT(e.first_name, ' ', e.last_name) AS seller,
+    ai.avg_income AS average_income
+FROM
+    average_income AS ai
+JOIN
+    employees AS e
+    ON ai.sales_person_id = e.employee_id
+WHERE
+    ai.avg_income < (SELECT overall_avg FROM overall_average)
+ORDER BY
+    average_income ASC;
+
+
+-- customers_by_month
+-- Этот запрос анализирует покупателей и доход по месяцам
 
 WITH tab AS (
-   SELECT
-       c.customer_id,
-       s.sale_date,
-       p.price,
-       s.quantity
-   FROM customers c
-   JOIN sales s ON c.customer_id = s.customer_id
-   JOIN products p ON s.product_id = p.product_id
+    SELECT
+        c.customer_id,
+        s.sale_date,
+        p.price,
+        s.quantity
+    FROM
+        customers AS c
+    JOIN
+        sales AS s
+        ON c.customer_id = s.customer_id
+    JOIN
+        products AS p
+        ON s.product_id = p.product_id
 )
+
 SELECT
-   TO_CHAR(sale_date, 'YYYY-MM') AS selling_month,
-   COUNT(DISTINCT customer_id) AS total_customers,
-   FLOOR(SUM(price * quantity)) AS income
-FROM tab
-GROUP BY TO_CHAR(sale_date, 'YYYY-MM')
-ORDER BY TO_CHAR(sale_date, 'YYYY-MM');
+    TO_CHAR(sale_date, 'YYYY-MM') AS selling_month,
+    COUNT(DISTINCT customer_id) AS total_customers,
+    FLOOR(SUM(price * quantity)) AS income
+FROM
+    tab
+GROUP BY
+    TO_CHAR(sale_date, 'YYYY-MM')
+ORDER BY
+    TO_CHAR(sale_date, 'YYYY-MM');
 
 
-with tab as (
-select
-c.customer_id,
-concat(c.first_name, ' ', c.last_name) as customer,
-MIN(s.sale_date) as sale_date,
-concat(e.first_name, ' ', e.last_name) as seller
-from customers c
-join sales s on
-c.customer_id = s.customer_id
-join employees e on
-s.sales_person_id = e.employee_id
-join products p on
-s.product_id = p.product_id
-where p.price = 0
-group by c.first_name, c.customer_id, c.last_name, e.first_name, e.last_name
-order by sale_date
+-- special_offer
+-- Этот запрос находит покупателей, которые совершили первую покупку по специальному предложению (цена = 0)
+
+WITH tab AS (
+    SELECT
+        c.customer_id,
+        CONCAT(c.first_name, ' ', c.last_name) AS customer,
+        MIN(s.sale_date) AS sale_date,
+        CONCAT(e.first_name, ' ', e.last_name) AS seller
+    FROM
+        customers AS c
+    JOIN
+        sales AS s
+        ON c.customer_id = s.customer_id
+    JOIN
+        employees AS e
+        ON s.sales_person_id = e.employee_id
+    JOIN
+        products AS p
+        ON s.product_id = p.product_id
+    WHERE
+        p.price = 0
+    GROUP BY
+        c.customer_id,
+        c.first_name,
+        c.last_name,
+        e.first_name,
+        e.last_name
 )
-select
-customer,
-sale_date,
-seller
-from tab
-where sale_date in (
-select min(sale_date)
-from sales s group by customer_id
-)
-order by customer;
+
+SELECT
+    customer,
+    sale_date,
+    seller
+FROM
+    tab
+WHERE
+    sale_date IN (
+        SELECT
+            MIN(sale_date)
+        FROM
+            sales
+        GROUP BY
+            customer_id
+    )
+ORDER BY
+    customer;
