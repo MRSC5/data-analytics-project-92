@@ -19,10 +19,10 @@ SELECT
     FLOOR(SUM(p.price * s.quantity)) AS income
 FROM
     employees AS e
-JOIN
+INNER JOIN
     sales AS s
     ON e.employee_id = s.sales_person_id
-JOIN
+INNER JOIN
     products AS p
     ON s.product_id = p.product_id
 GROUP BY
@@ -47,10 +47,10 @@ SELECT
     FLOOR(SUM(p.price * s.quantity)) AS income
 FROM
     employees AS e
-JOIN
+INNER JOIN
     sales AS s
     ON e.employee_id = s.sales_person_id
-JOIN
+INNER JOIN
     products AS p
     ON s.product_id = p.product_id
 GROUP BY
@@ -72,7 +72,7 @@ WITH average_income AS (
         FLOOR(SUM(p.price * s.quantity) / COUNT(s.sales_id)) AS avg_income
     FROM
         sales AS s
-    JOIN
+    INNER JOIN
         products AS p
         ON s.product_id = p.product_id
     GROUP BY
@@ -91,11 +91,16 @@ SELECT
     ai.avg_income AS average_income
 FROM
     average_income AS ai
-JOIN
+INNER JOIN
     employees AS e
     ON ai.sales_person_id = e.employee_id
 WHERE
-    ai.avg_income < (SELECT overall_avg FROM overall_average)
+    ai.avg_income < (
+        SELECT
+            overall_average.overall_avg
+        FROM
+            overall_average
+    )
 ORDER BY
     average_income ASC;
 
@@ -111,24 +116,24 @@ WITH tab AS (
         s.quantity
     FROM
         customers AS c
-    JOIN
+    INNER JOIN
         sales AS s
         ON c.customer_id = s.customer_id
-    JOIN
+    INNER JOIN
         products AS p
         ON s.product_id = p.product_id
 )
 
 SELECT
-    TO_CHAR(sale_date, 'YYYY-MM') AS selling_month,
-    COUNT(DISTINCT customer_id) AS total_customers,
-    FLOOR(SUM(price * quantity)) AS income
+    TO_CHAR(tab.sale_date, 'YYYY-MM') AS selling_month,
+    COUNT(DISTINCT tab.customer_id) AS total_customers,
+    FLOOR(SUM(tab.price * tab.quantity)) AS income
 FROM
     tab
 GROUP BY
-    TO_CHAR(sale_date, 'YYYY-MM')
+    TO_CHAR(tab.sale_date, 'YYYY-MM')
 ORDER BY
-    TO_CHAR(sale_date, 'YYYY-MM');
+    TO_CHAR(tab.sale_date, 'YYYY-MM');
 
 
 -- special_offer
@@ -142,13 +147,13 @@ WITH tab AS (
         CONCAT(e.first_name, ' ', e.last_name) AS seller
     FROM
         customers AS c
-    JOIN
+    INNER JOIN
         sales AS s
         ON c.customer_id = s.customer_id
-    JOIN
+    INNER JOIN
         employees AS e
         ON s.sales_person_id = e.employee_id
-    JOIN
+    INNER JOIN
         products AS p
         ON s.product_id = p.product_id
     WHERE
@@ -162,19 +167,19 @@ WITH tab AS (
 )
 
 SELECT
-    customer,
-    sale_date,
-    seller
+    tab.customer,
+    tab.sale_date,
+    tab.seller
 FROM
     tab
 WHERE
-    sale_date IN (
+    tab.sale_date IN (
         SELECT
-            MIN(sale_date)
+            MIN(sales.sale_date)
         FROM
             sales
         GROUP BY
-            customer_id
+            sales.customer_id
     )
 ORDER BY
-    customer;
+    tab.customer;
