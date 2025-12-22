@@ -7,7 +7,7 @@ from
 select
     concat(emp.first_name, ' ', emp.last_name) as seller,
     count(s.sales_person_id) as operations,
-    floor(sum(s.quantity * p.price)) AS income
+    floor(sum(s.quantity * p.price)) as income
 from
     sales as s
 inner join
